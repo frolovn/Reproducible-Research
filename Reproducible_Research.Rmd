@@ -1,0 +1,94 @@
+---
+title: "Reproducible Research Assigment 2"
+author: "Frolov Nikita"
+date: "October 7, 2018"
+output: html_document
+---
+
+#Storm Data analysis with NOAA Storm Database
+
+The basic goal of this assignment is to explore the NOAA Storm Database and answer some questions about severe weather events.
+
+#Synopsis 
+
+**Summary of the analysis steps.**
+
+1. **Downloading**: download the data and assign it to a variable.
+2. **Processing**: process the data to answer two questions:
+* Across the United States, which types of events (as indicated in the ```EVTYPE``` variable) are most harmful with respect to population health?
+* Across the United States, which types of events have the greatest economic consequences?
+3. **Analysis 1**: use ```EVTYPE``` variable to detect most harmful to population health event.
+4. **Analysis 2**: use ```EVTYPE``` variable to detect which event has the greatest economic consequences.
+
+#Data Pre-Processing 
+
+####Dowloading and subsetting the data with required data only.
+
+```{r}
+if(!file.exists("stormData.csv.bz2")) {
+  download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",
+  destfile = "stormData.csv.bz2")
+}
+dataNOAA <- read.csv(bzfile("stormData.csv.bz2"), sep=",", header=T)
+dataNOAA <- dataNOAA[,c('EVTYPE','FATALITIES','INJURIES', 'PROPDMG', 'PROPDMGEXP', 'CROPDMG', 'CROPDMGEXP')]
+```
+
+####Converting property and crop damage ```H, K, M, B``` indicators to calculated values stored at ```PROPDMGVAL``` and ```CROPDMGVAL```. 
+
+```{r}
+dataNOAA$PROPDMGVAL = 0
+dataNOAA$CROPDMGVAL = 0
+dataNOAA[dataNOAA$PROPDMGEXP == "H", ]$PROPDMGVAL = dataNOAA[dataNOAA$PROPDMGEXP == "H", ]$PROPDMG * 10^2
+dataNOAA[dataNOAA$CROPDMGEXP == "H", ]$CROPDMGVAL = dataNOAA[dataNOAA$CROPDMGEXP == "H", ]$CROPDMG * 10^2
+dataNOAA[dataNOAA$PROPDMGEXP == "K", ]$PROPDMGVAL = dataNOAA[dataNOAA$PROPDMGEXP == "K", ]$PROPDMG * 10^3
+dataNOAA[dataNOAA$CROPDMGEXP == "K", ]$CROPDMGVAL = dataNOAA[dataNOAA$CROPDMGEXP == "K", ]$CROPDMG * 10^3
+dataNOAA[dataNOAA$PROPDMGEXP == "M", ]$PROPDMGVAL = dataNOAA[dataNOAA$PROPDMGEXP == "M", ]$PROPDMG * 10^6
+dataNOAA[dataNOAA$CROPDMGEXP == "M", ]$CROPDMGVAL = dataNOAA[dataNOAA$CROPDMGEXP == "M", ]$CROPDMG * 10^6
+dataNOAA[dataNOAA$PROPDMGEXP == "B", ]$PROPDMGVAL = dataNOAA[dataNOAA$PROPDMGEXP == "B", ]$PROPDMG * 10^9
+dataNOAA[dataNOAA$CROPDMGEXP == "B", ]$CROPDMGVAL = dataNOAA[dataNOAA$CROPDMGEXP == "B", ]$CROPDMG * 10^9
+```
+
+#Data Processing and Results 
+
+###Determining most harmfull events in respest to fatalities and injuries.
+
+####5 most harmful events with respect to fatalities.
+
+```{r}
+library(ggplot2)
+fatal <- aggregate(FATALITIES ~ EVTYPE, data=dataNOAA, sum)
+fatalOrdered <- fatal[order(-fatal$FATALITIES), ][1:5, ]
+ggplot(fatalOrdered, aes(x = factor(fatalOrdered$EVTYPE,
+    levels = fatalOrdered$EVTYPE), y = FATALITIES)) + 
+    geom_bar(stat = "identity", fill = "red") + 
+    xlab("Event Type") + ylab("Fatalities") + ggtitle("5 most harmful events with respect to fatalities")
+```
+
+####5 most harmful events with respect to injuries.
+
+```{r}
+library(ggplot2)
+inj <- aggregate(INJURIES ~ EVTYPE, data=dataNOAA, sum)
+injOrdered <- inj[order(-inj$INJURIES), ][1:5, ]
+ggplot(injOrdered, aes(x = factor(injOrdered$EVTYPE,
+    levels = injOrdered$EVTYPE), y = INJURIES)) + 
+    geom_bar(stat = "identity", fill = "red") + 
+    xlab("Event Type") + ylab("Injuries") + ggtitle("5 most harmful events with respect to injuries")
+```
+
+####**According to the plots tornado is the most harmfull weather event with respect to both fatalities and injuries.**
+
+###Determining most harmfull events in respest to economic consequences.
+
+```{r}
+library(ggplot2)
+dmgs <- aggregate(PROPDMGVAL + CROPDMGVAL ~ EVTYPE, data=dataNOAA, sum)
+names(dmgs) = c("EVTYPE", "TTLVAL")
+dmgsOrdered <- dmgs[order(-dmgs$TTLVAL), ][1:5, ]
+ggplot(dmgsOrdered, aes(x = factor(dmgsOrdered$EVTYPE,
+    levels = dmgsOrdered$EVTYPE), y = TTLVAL)) + 
+    geom_bar(stat = "identity", fill = "red") + 
+    xlab("Event Type") + ylab("Damage value") + ggtitle("5 most harmfull events in respest to economic consequences")
+    ```
+    
+####**According to the plot flood is the most harmfull weather event with respect to economic consequences.**
